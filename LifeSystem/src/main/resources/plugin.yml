@@ -1,9 +1,17 @@
+
 name: LifeSystem
-version: 1.0.0
+version: 1.2.0
 main: me.yourname.lifesystem.LifeSystem
 api-version: '1.21'
 
 commands:
   lives:
-    description: Set player lives
-    usage: /lives set <player> <amount>
+    description: Manage player lives
+    usage: /lives
+    aliases:
+      - life
+
+permissions:
+  lifesystem.admin:
+    description: Allows setting lives and custom hearts
+    default: op
