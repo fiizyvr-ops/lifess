@@ -74,7 +74,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         displays.clear();
     }
 
-    // ---------------- DATA ----------------
+    // DATA
 
     private void loadData() {
         lives.clear();
@@ -117,7 +117,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         return lives.getOrDefault(player.getUniqueId(), 5);
     }
 
-    // ---------------- HEART FONT ----------------
+    // HEART FONT
 
     private Component createHeart(Player player) {
         String glyph;
@@ -139,17 +139,15 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         return Component.text(glyph).font(HEART_FONT);
     }
 
-    // ---------------- PLAYER DISPLAY ----------------
+    // PLAYER DISPLAY
 
     private void updatePlayer(Player player) {
         Component heart = createHeart(player);
 
-        // Heart beside the player's name in the tab list.
         player.playerListName(
                 Component.text(player.getName() + "  ").append(heart)
         );
 
-        // Do not create an overhead display for a dead player.
         if (player.isDead()) {
             removeDisplay(player);
             return;
@@ -169,14 +167,12 @@ public final class LifeSystem extends JavaPlugin implements Listener {
             display.setBillboard(Display.Billboard.CENTER);
             display.setAlignment(TextDisplay.TextAlignment.CENTER);
 
-            // Remove the text background.
             display.setDefaultBackground(false);
             display.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
 
             display.setSeeThrough(true);
             display.setShadowed(false);
 
-            // Raise the heart above the passenger attachment position.
             display.setTransformation(
                     new Transformation(
                             new Vector3f(0f, 0.8f, 0f),
@@ -194,7 +190,6 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                 return;
             }
 
-            // Hide this display only from the player it belongs to.
             player.hideEntity(this, display);
 
             displays.put(player.getUniqueId(), display);
@@ -217,7 +212,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         }
     }
 
-    // ---------------- LIFE MANAGEMENT ----------------
+    // LIFE MANAGEMENT
 
     public void setLives(Player player, int amount) {
         int safeAmount = Math.max(0, amount);
@@ -246,7 +241,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         }
     }
 
-    // ---------------- COMMANDS ----------------
+    // COMMANDS
 
     private boolean handleCommand(
             org.bukkit.command.CommandSender sender,
@@ -270,7 +265,6 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                 return true;
             }
 
-            // /lives set random = randomize the sender's lives.
             if (args.length == 2 && args[1].equalsIgnoreCase("random")) {
                 if (!(sender instanceof Player player)) {
                     sender.sendMessage("Console must specify a player.");
@@ -325,11 +319,6 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                 return true;
             }
 
-            if (args.length == 2 && args[1].equalsIgnoreCase("remove")) {
-                sender.sendMessage("Usage: /lives custom remove <player>");
-                return true;
-            }
-
             if (args.length == 3 && args[1].equalsIgnoreCase("remove")) {
                 Player target = Bukkit.getPlayerExact(args[2]);
 
@@ -372,7 +361,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         return true;
     }
 
-    // ---------------- EVENTS ----------------
+    // EVENTS
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
@@ -383,6 +372,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
         Bukkit.getScheduler().runTaskLater(this, () -> {
             if (!player.isOnline()) return;
+
             updatePlayer(player);
             applyZeroLivesRule(player);
         }, 2L);
@@ -398,8 +388,18 @@ public final class LifeSystem extends JavaPlugin implements Listener {
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
 
-        setLives(player, Math.max(0, getLives(player) - 1));
+        int previousLives = getLives(player);
+        int newLives = Math.max(0, previousLives - 1);
+
+        setLives(player, newLives);
         removeDisplay(player);
+
+        // Announce only when the player loses their final life.
+        if (previousLives == 1) {
+            Bukkit.broadcastMessage(
+                    "§c" + player.getName() + " has lost all their lives!"
+            );
+        }
     }
 
     @EventHandler
