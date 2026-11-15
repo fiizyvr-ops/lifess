@@ -39,6 +39,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         if (getCommand("lives") != null) {
             getCommand("lives").setExecutor((sender, command, label, args) -> {
 
+                // /lives
                 if (args.length == 0) {
                     if (!(sender instanceof Player player)) {
                         sender.sendMessage("This command is for players.");
@@ -80,10 +81,10 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                         && args[0].equalsIgnoreCase("set")
                         && args[2].equalsIgnoreCase("random")) {
 
-                    Player target = Bukkit.getPlayerExact(args[1]);
+                    Player target = findPlayer(args[1]);
 
                     if (target == null) {
-                        sender.sendMessage(ChatColor.RED + "That player must be online.");
+                        sender.sendMessage(ChatColor.RED + "Player not found online.");
                         return true;
                     }
 
@@ -98,10 +99,10 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
                 // /lives set <player> <amount>
                 if (args.length == 3 && args[0].equalsIgnoreCase("set")) {
-                    Player target = Bukkit.getPlayerExact(args[1]);
+                    Player target = findPlayer(args[1]);
 
                     if (target == null) {
-                        sender.sendMessage(ChatColor.RED + "That player must be online.");
+                        sender.sendMessage(ChatColor.RED + "Player not found online.");
                         return true;
                     }
 
@@ -129,10 +130,10 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
                 // /lives reset <player>
                 if (args.length == 2 && args[0].equalsIgnoreCase("reset")) {
-                    Player target = Bukkit.getPlayerExact(args[1]);
+                    Player target = findPlayer(args[1]);
 
                     if (target == null) {
-                        sender.sendMessage(ChatColor.RED + "That player must be online.");
+                        sender.sendMessage(ChatColor.RED + "Player not found online.");
                         return true;
                     }
 
@@ -207,6 +208,36 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         updateDisplay(player);
     }
 
+    // Find a player by real username or Bukkit-visible nickname
+    private Player findPlayer(String input) {
+        String search = ChatColor.stripColor(input).trim();
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+
+            if (player.getName().equalsIgnoreCase(search)) {
+                return player;
+            }
+
+            String displayName = ChatColor.stripColor(
+                    player.getDisplayName()
+            );
+
+            if (displayName.equalsIgnoreCase(search)) {
+                return player;
+            }
+
+            String listName = ChatColor.stripColor(
+                    player.getPlayerListName()
+            );
+
+            if (listName.equalsIgnoreCase(search)) {
+                return player;
+            }
+        }
+
+        return null;
+    }
+
     private NamedTextColor getLifeColor(int lives) {
         if (lives >= 5) {
             return NamedTextColor.AQUA;
@@ -227,7 +258,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         int lives = getLives(player);
         NamedTextColor color = getLifeColor(lives);
 
-        // Colored name in the tab list
+        // Tab list color
         player.setPlayerListName(
                 LegacyComponentSerializer.legacySection().serialize(
                         Component.text(
@@ -237,7 +268,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                 )
         );
 
-        // Colored number below the player's name
+        // Below-name number color
         var score = livesObjective.getScoreFor(player);
         score.setScore(lives);
         score.numberFormat(NumberFormat.styled(Style.style(color)));
@@ -265,7 +296,6 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         if (remaining == 0) {
             Bukkit.broadcastMessage(ChatColor.RED + player.getName()
                     + " has run out of lives and is now eliminated!");
-
         }
     }
 
