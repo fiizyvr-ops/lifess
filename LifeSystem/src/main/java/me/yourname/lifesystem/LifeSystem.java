@@ -1,19 +1,16 @@
+
 package me.yourname.lifesystem;
 
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
+import org.bukkit.scoreboard.NumberFormat;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
-import org.bukkit.scoreboard.ScoreboardManager;
-import org.bukkit.scoreboard.number.NumberFormat;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,7 +18,8 @@ import java.util.UUID;
 
 public final class LifeSystem extends JavaPlugin {
 
-    private static final Key HEART_FONT = Key.key("lifesystem", "hearts");
+    private static final Key HEART_FONT =
+            Key.key("lifesystem", "hearts");
 
     private final Map<UUID, Integer> lives = new HashMap<>();
 
@@ -30,13 +28,14 @@ public final class LifeSystem extends JavaPlugin {
         saveDefaultConfig();
         loadLives();
 
-        getServer().getPluginManager().registerEvents(
-                new org.bukkit.event.Listener() {}, this
-        );
-
         updateAllPlayers();
 
-        Bukkit.getScheduler().runTaskTimer(this, this::updateAllPlayers, 20L, 20L);
+        Bukkit.getScheduler().runTaskTimer(
+                this,
+                this::updateAllPlayers,
+                20L,
+                20L
+        );
 
         getLogger().info("LifeSystem enabled!");
     }
@@ -50,12 +49,13 @@ public final class LifeSystem extends JavaPlugin {
         lives.clear();
 
         if (getConfig().isConfigurationSection("lives")) {
-            for (String key : getConfig().getConfigurationSection("lives").getKeys(false)) {
+            for (String key :
+                    getConfig().getConfigurationSection("lives").getKeys(false)) {
                 try {
                     UUID uuid = UUID.fromString(key);
                     lives.put(uuid, getConfig().getInt("lives." + key, 5));
                 } catch (IllegalArgumentException ignored) {
-                    getLogger().warning("Invalid UUID in lives config: " + key);
+                    getLogger().warning("Invalid UUID: " + key);
                 }
             }
         }
@@ -63,8 +63,12 @@ public final class LifeSystem extends JavaPlugin {
 
     private void saveLives() {
         for (Map.Entry<UUID, Integer> entry : lives.entrySet()) {
-            getConfig().set("lives." + entry.getKey(), entry.getValue());
+            getConfig().set(
+                    "lives." + entry.getKey(),
+                    entry.getValue()
+            );
         }
+
         saveConfig();
     }
 
@@ -83,7 +87,6 @@ public final class LifeSystem extends JavaPlugin {
             default -> "\uE006";
         };
 
-        // Custom font only. No background color or highlight is applied.
         return Component.text(glyph).font(HEART_FONT);
     }
 
@@ -91,7 +94,7 @@ public final class LifeSystem extends JavaPlugin {
         int amount = getLives(player);
         Component heart = createHeart(amount);
 
-        // Tab list name
+        // Tab list
         player.playerListName(
                 Component.text(player.getName() + " ")
                         .append(heart)
@@ -101,6 +104,7 @@ public final class LifeSystem extends JavaPlugin {
         Scoreboard board = player.getScoreboard();
 
         Objective objective = board.getObjective("lifesystem");
+
         if (objective == null) {
             objective = board.registerNewObjective(
                     "lifesystem",
@@ -111,7 +115,6 @@ public final class LifeSystem extends JavaPlugin {
 
         objective.setDisplaySlot(DisplaySlot.BELOW_NAME);
         objective.numberFormat(NumberFormat.fixed(heart));
-
         objective.getScore(player.getName()).setScore(amount);
     }
 
