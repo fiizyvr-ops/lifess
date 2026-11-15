@@ -2,6 +2,8 @@
 package me.yourname.lifesystem;
 
 import net.kyori.adventure.text.Component;
+import io.papermc.paper.scoreboard.numbers.NumberFormat;
+
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -47,7 +49,8 @@ public class LifeSystem extends JavaPlugin implements Listener, CommandExecutor 
         setupUnderNameDisplay();
 
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (!hasCustomLife(player) && !getConfig().contains("players." + player.getUniqueId())) {
+            if (!hasCustomLife(player)
+                    && !getConfig().contains("players." + player.getUniqueId())) {
                 setNormalLives(player, STARTING_LIVES);
             }
 
@@ -90,8 +93,9 @@ public class LifeSystem extends JavaPlugin implements Listener, CommandExecutor 
             if (hasCustomLife(player)) {
                 player.sendMessage(ChatColor.LIGHT_PURPLE + "Your life: 🖤");
             } else {
-                player.sendMessage(ChatColor.GREEN + "Your lives: " + getHeart(player)
-                        + ChatColor.GRAY + " (" + getLives(player) + ")");
+                player.sendMessage(ChatColor.GREEN + "Your lives: "
+                        + getHeart(player) + ChatColor.GRAY
+                        + " (" + getLives(player) + ")");
             }
             return true;
         }
@@ -117,14 +121,16 @@ public class LifeSystem extends JavaPlugin implements Listener, CommandExecutor 
             }
 
             if (args.length != 3) {
-                sender.sendMessage(ChatColor.RED + "Usage: /lives set <player> <amount|random>");
+                sender.sendMessage(ChatColor.RED
+                        + "Usage: /lives set <player> <amount|random>");
                 return true;
             }
 
             Player target = findPlayer(args[1]);
 
             if (target == null) {
-                sender.sendMessage(ChatColor.RED + "That player must be online. Check their username or nickname.");
+                sender.sendMessage(ChatColor.RED
+                        + "That player must be online. Check their username or nickname.");
                 return true;
             }
 
@@ -134,7 +140,8 @@ public class LifeSystem extends JavaPlugin implements Listener, CommandExecutor 
 
                 sender.sendMessage(ChatColor.GREEN + target.getName()
                         + "'s lives were randomly set to " + randomLives + ".");
-                target.sendMessage(ChatColor.GREEN + "Your lives were randomly set to "
+                target.sendMessage(ChatColor.GREEN
+                        + "Your lives were randomly set to "
                         + randomLives + " " + getHeart(target));
                 return true;
             }
@@ -149,13 +156,15 @@ public class LifeSystem extends JavaPlugin implements Listener, CommandExecutor 
 
                 setNormalLives(target, amount);
 
-                sender.sendMessage(ChatColor.GREEN + "Set " + target.getName()
-                        + "'s lives to " + amount + ".");
-                target.sendMessage(ChatColor.GREEN + "Your lives were set to "
-                        + amount + " " + getHeart(target));
+                sender.sendMessage(ChatColor.GREEN + "Set "
+                        + target.getName() + "'s lives to " + amount + ".");
+                target.sendMessage(ChatColor.GREEN
+                        + "Your lives were set to " + amount + " "
+                        + getHeart(target));
 
             } catch (NumberFormatException exception) {
-                sender.sendMessage(ChatColor.RED + "Enter a valid number or use random.");
+                sender.sendMessage(ChatColor.RED
+                        + "Enter a valid number or use random.");
             }
 
             return true;
@@ -181,11 +190,11 @@ public class LifeSystem extends JavaPlugin implements Listener, CommandExecutor 
 
             setNormalLives(target.getUniqueId(), STARTING_LIVES);
 
-            sender.sendMessage(ChatColor.GREEN + "Reset that player's lives to 5.");
+            sender.sendMessage(ChatColor.GREEN
+                    + "Reset that player's lives to 5.");
 
             if (target.isOnline()) {
-                Player onlineTarget = target.getPlayer();
-                onlineTarget.sendMessage(ChatColor.GREEN
+                target.getPlayer().sendMessage(ChatColor.GREEN
                         + "Your lives have been reset to 5 🩵");
             }
 
@@ -202,13 +211,15 @@ public class LifeSystem extends JavaPlugin implements Listener, CommandExecutor 
                 Player target = findPlayer(args[1]);
 
                 if (target == null) {
-                    sender.sendMessage(ChatColor.RED + "That player must be online.");
+                    sender.sendMessage(ChatColor.RED
+                            + "That player must be online.");
                     return true;
                 }
 
                 enableCustomLife(target);
-                sender.sendMessage(ChatColor.GREEN + "Enabled custom life for "
-                        + target.getName() + ".");
+
+                sender.sendMessage(ChatColor.GREEN
+                        + "Enabled custom life for " + target.getName() + ".");
                 target.sendMessage(ChatColor.LIGHT_PURPLE
                         + "You now have a custom life: 🖤");
                 return true;
@@ -218,31 +229,38 @@ public class LifeSystem extends JavaPlugin implements Listener, CommandExecutor 
                 Player target = findPlayer(args[2]);
 
                 if (target == null) {
-                    sender.sendMessage(ChatColor.RED + "That player must be online.");
+                    sender.sendMessage(ChatColor.RED
+                            + "That player must be online.");
                     return true;
                 }
 
                 setNormalLives(target, STARTING_LIVES);
 
-                sender.sendMessage(ChatColor.GREEN + "Removed custom life from "
-                        + target.getName() + " and restored 5 normal lives.");
+                sender.sendMessage(ChatColor.GREEN
+                        + "Removed custom life from " + target.getName()
+                        + " and restored 5 normal lives.");
                 target.sendMessage(ChatColor.GREEN
                         + "Your custom life was removed. You now have 5 normal lives 🩵");
                 return true;
             }
 
-            sender.sendMessage(ChatColor.RED + "Usage: /lives custom <player>");
-            sender.sendMessage(ChatColor.RED + "Usage: /lives custom remove <player>");
+            sender.sendMessage(ChatColor.RED
+                    + "Usage: /lives custom <player>");
+            sender.sendMessage(ChatColor.RED
+                    + "Usage: /lives custom remove <player>");
             return true;
         }
 
         sender.sendMessage(ChatColor.YELLOW + "LifeSystem commands:");
         sender.sendMessage(ChatColor.GRAY + "/lives");
         sender.sendMessage(ChatColor.GRAY + "/lives set random");
-        sender.sendMessage(ChatColor.GRAY + "/lives set <player> <amount|random>");
+        sender.sendMessage(ChatColor.GRAY
+                + "/lives set <player> <amount|random>");
         sender.sendMessage(ChatColor.GRAY + "/lives reset <player>");
         sender.sendMessage(ChatColor.GRAY + "/lives custom <player>");
-        sender.sendMessage(ChatColor.GRAY + "/lives custom remove <player>");
+        sender.sendMessage(ChatColor.GRAY
+                + "/lives custom remove <player>");
+
         return true;
     }
 
@@ -254,7 +272,9 @@ public class LifeSystem extends JavaPlugin implements Listener, CommandExecutor 
                 return player;
             }
 
-            String displayName = ChatColor.stripColor(player.getDisplayName());
+            String displayName =
+                    ChatColor.stripColor(player.getDisplayName());
+
             if (displayName.equalsIgnoreCase(search)) {
                 return player;
             }
@@ -292,6 +312,7 @@ public class LifeSystem extends JavaPlugin implements Listener, CommandExecutor 
         saveConfig();
 
         Player online = Bukkit.getPlayer(uuid);
+
         if (online != null) {
             applyPlayerMode(online);
             updateDisplay(online);
@@ -379,13 +400,16 @@ public class LifeSystem extends JavaPlugin implements Listener, CommandExecutor 
         String heart = getHeart(player);
         ChatColor color = getLifeColor(player);
 
+        // Heart beside the player's name in the tab list.
         player.setPlayerListName(
                 color + player.getName() + " " + heart
         );
 
+        // Heart below the player's nametag instead of a number.
         if (underNameObjective != null) {
             Score score = underNameObjective.getScore(player);
             score.setScore(1);
+            score.numberFormat(NumberFormat.fixed(Component.text(heart)));
         }
     }
 
@@ -406,6 +430,7 @@ public class LifeSystem extends JavaPlugin implements Listener, CommandExecutor 
                     "players." + player.getUniqueId(),
                     newLives
             );
+
             saveConfig();
 
             Bukkit.getScheduler().runTask(this, () -> {
