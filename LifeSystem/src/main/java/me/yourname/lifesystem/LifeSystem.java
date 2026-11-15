@@ -8,7 +8,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
-import org.bukkit.scoreboard.NumberFormat;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 
@@ -28,12 +27,10 @@ public final class LifeSystem extends JavaPlugin {
         saveDefaultConfig();
         loadLives();
 
-        updateAllPlayers();
-
         Bukkit.getScheduler().runTaskTimer(
                 this,
                 this::updateAllPlayers,
-                20L,
+                1L,
                 20L
         );
 
@@ -68,7 +65,6 @@ public final class LifeSystem extends JavaPlugin {
                     entry.getValue()
             );
         }
-
         saveConfig();
     }
 
@@ -94,13 +90,13 @@ public final class LifeSystem extends JavaPlugin {
         int amount = getLives(player);
         Component heart = createHeart(amount);
 
-        // Tab list
+        // Tab-list heart
         player.playerListName(
-                Component.text(player.getName() + " ")
+                Component.text(player.getName() + "  ")
                         .append(heart)
         );
 
-        // Below-name display
+        // Below-name scoreboard
         Scoreboard board = player.getScoreboard();
 
         Objective objective = board.getObjective("lifesystem");
@@ -114,7 +110,6 @@ public final class LifeSystem extends JavaPlugin {
         }
 
         objective.setDisplaySlot(DisplaySlot.BELOW_NAME);
-        objective.numberFormat(NumberFormat.fixed(heart));
         objective.getScore(player.getName()).setScore(amount);
     }
 
