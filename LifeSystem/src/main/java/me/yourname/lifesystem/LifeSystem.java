@@ -1,5 +1,7 @@
 package me.yourname.lifesystem;
 
+import io.papermc.paper.scoreboard.numbers.NumberFormat;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.Component;
 import org.bukkit.BanList;
 import org.bukkit.Bukkit;
@@ -140,28 +142,35 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         updateDisplay(player);
     }
 
-    private void updateDisplay(Player player) {
-        int lives = getLives(player);
-        ChatColor color;
+  private void updateDisplay(Player player) {
+    int lives = getLives(player);
 
-        if (lives >= 5) {
-            color = ChatColor.GREEN;
-        } else if (lives == 4) {
-            color = ChatColor.YELLOW;
-        } else if (lives == 3) {
-            color = ChatColor.GOLD;
-        } else if (lives == 2) {
-            color = ChatColor.RED;
-        } else if (lives == 1) {
-            color = ChatColor.DARK_RED;
-        } else {
-            color = ChatColor.GRAY;
-        }
+    NamedTextColor color;
 
-        player.setPlayerListName(color + player.getName()
-                + ChatColor.RESET + " [" + lives + "]");
-        livesObjective.getScoreFor(player).setScore(lives);
+    if (lives >= 5) {
+        color = NamedTextColor.AQUA;
+    } else if (lives == 4) {
+        color = NamedTextColor.GREEN;
+    } else if (lives == 3) {
+        color = NamedTextColor.YELLOW;
+    } else if (lives == 2) {
+        color = NamedTextColor.GOLD;
+    } else if (lives == 1) {
+        color = NamedTextColor.RED;
+    } else {
+        color = NamedTextColor.LIGHT_PURPLE;
     }
+
+    player.setPlayerListName(
+        net.kyori.adventure.text.Component.text(
+            player.getName() + " [" + lives + "]", color
+        )
+    );
+
+    var score = livesObjective.getScoreFor(player);
+    score.setScore(lives);
+    score.numberFormat(NumberFormat.styled(color));
+}
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
