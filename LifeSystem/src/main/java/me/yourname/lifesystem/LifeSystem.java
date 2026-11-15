@@ -1,4 +1,3 @@
-
 package me.yourname.lifesystem;
 
 import net.kyori.adventure.key.Key;
@@ -9,6 +8,7 @@ import org.bukkit.Color;
 import org.bukkit.GameMode;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
+import org.bukkit.metadata.MetadataValue;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
@@ -46,6 +46,9 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         loadData();
 
         Bukkit.getPluginManager().registerEvents(this, this);
+
+        // Recheck spectator/vanish visibility regularly (including vanish plugin changes).
+        Bukkit.getScheduler().runTaskTimer(this, this::updateAllPlayers, 20L, 20L);
 
         if (getCommand("lives") == null) {
             getLogger().severe("The lives command is missing from plugin.yml!");
@@ -151,7 +154,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         player.playerListName(Component.text(player.getName()));
 
         // Remove overhead display while dead.
-        if (player.isDead()) {
+        if (player.isDead() || player.getGameMode() == GameMode.SPECTATOR || isVanished(player)) {
             removeDisplay(player);
             return;
         }
@@ -205,6 +208,17 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         }
 
         display.text(heart);
+    }
+
+    // EssentialsX and many vanish plugins expose this metadata. isInvisible() covers
+    // plugins that hide players without metadata.
+    private boolean isVanished(Player player) {
+        if (player.hasMetadata("vanished")) {
+            for (MetadataValue value : player.getMetadata("vanished")) {
+                if (value.asBoolean()) return true;
+            }
+        }
+        return player.isInvisible();
     }
 
     private void removeDisplay(Player player) {
@@ -417,27 +431,17 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         int previousLives = getLives(player);
         int newLives = Math.max(0, previousLives - 1);
 
-        // Broadcast the respawn anchor sound on every death (pitch 2).
+        // Anchor sound on every death; volume 3 makes it noticeably louder, pitch 2.
         for (Player online : Bukkit.getOnlinePlayers()) {
-            online.playSound(
-                    online.getLocation(),
-                    Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE,
-                    SoundCategory.AMBIENT,
-                    1.0f,
-                    2.0f
-            );
+            online.playSound(online.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE,
+                    SoundCategory.AMBIENT, 3.0f, 2.0f);
         }
 
-        // If this was the player's final life, also broadcast the Wither sound (pitch 2).
+        // Wither sound when this death consumes the player's last life.
         if (previousLives == 1) {
             for (Player online : Bukkit.getOnlinePlayers()) {
-                online.playSound(
-                        online.getLocation(),
-                        Sound.ENTITY_WITHER_SPAWN,
-                        SoundCategory.AMBIENT,
-                        1.0f,
-                        2.0f
-                );
+                online.playSound(online.getLocation(), Sound.ENTITY_WITHER_SPAWN,
+                        SoundCategory.AMBIENT, 1.0f, 2.0f);
             }
         }
 
