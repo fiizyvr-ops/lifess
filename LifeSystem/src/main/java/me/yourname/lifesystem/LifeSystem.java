@@ -5,15 +5,16 @@ import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
+import org.bukkit.Color;
+import org.bukkit.World;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
@@ -43,12 +44,9 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         removeOldDisplays();
         removeOldScoreboards();
 
-        Bukkit.getScheduler().runTaskTimer(
-                this,
-                this::updateAllPlayers,
-                1L,
-                1L
-        );
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            updatePlayer(player);
+        }
 
         getLogger().info("LifeSystem enabled!");
     }
@@ -112,31 +110,20 @@ public final class LifeSystem extends JavaPlugin implements Listener {
     }
 
     private void updatePlayer(Player player) {
-        int amount = getLives(player);
-        Component heart = createHeart(amount);
+        UUID uuid = player.getUniqueId();
+        Component heart = createHeart(getLives(player));
 
         // TAB LIST HEART
         player.playerListName(
-                Component.text(player.getName() + "  ")
-                        .append(heart)
+                Component.text(player.getName() + "  ").append(heart)
         );
 
-        // CREATE OR UPDATE TRANSPARENT HEART DISPLAY
-        TextDisplay display = displays.get(player.getUniqueId());
+        // CREATE OR REUSE THE TEXT DISPLAY
+        TextDisplay display = displays.get(uuid);
 
-        if (display == null ||
-                !display.isValid() ||
-                !display.getWorld().equals(player.getWorld())) {
-
-            if (display != null && display.isValid()) {
-                display.remove();
-            }
-
-            Location location = player.getLocation().clone()
-                    .add(0, 2.35, 0);
-
+        if (display == null || !display.isValid()) {
             display = player.getWorld().spawn(
-                    location,
+                    player.getLocation().add(0, 2.0, 0),
                     TextDisplay.class,
                     entity -> {
                         entity.addScoreboardTag(DISPLAY_TAG);
@@ -149,10 +136,9 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                                 TextDisplay.TextAlignment.CENTER
                         );
 
-                        // REMOVE THE BACKGROUND
                         entity.setDefaultBackground(false);
                         entity.setBackgroundColor(
-                                org.bukkit.Color.fromARGB(0, 0, 0, 0)
+                                Color.fromARGB(0, 0, 0, 0)
                         );
 
                         entity.setSeeThrough(true);
@@ -160,25 +146,23 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                     }
             );
 
-            displays.put(player.getUniqueId(), display);
+            displays.put(uuid, display);
         }
 
-        // Keep the heart above the player's head
-        display.teleport(
-                player.getLocation().clone().add(0, 2.35, 0)
-        );
+        // ATTACH TO PLAYER: NO REPEATED TELEPORTING
+        if (display.getVehicle() != player) {
+            if (display.getVehicle() != null) {
+                display.getVehicle().removePassenger(display);
+            }
+
+            player.addPassenger(display);
+        }
 
         display.text(heart);
     }
 
-    private void updateAllPlayers() {
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            updatePlayer(player);
-        }
-    }
-
     private void removeOldDisplays() {
-        for (org.bukkit.World world : Bukkit.getWorlds()) {
+        for (World world : Bukkit.getWorlds()) {
             for (org.bukkit.entity.Entity entity : world.getEntities()) {
                 if (entity instanceof TextDisplay &&
                         entity.getScoreboardTags().contains(DISPLAY_TAG)) {
@@ -192,27 +176,28 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         Scoreboard main =
                 Bukkit.getScoreboardManager().getMainScoreboard();
 
-        Objective mainObjective = main.getObjective("lifesystem");
+        Objective objective = main.getObjective("lifesystem");
 
-        if (mainObjective != null) {
-            mainObjective.unregister();
+        if (objective != null) {
+            objective.unregister();
         }
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             Scoreboard board = player.getScoreboard();
+            Objective playerObjective = board.getObjective("lifesystem");
 
-            Objective objective = board.getObjective("lifesystem");
-
-            if (objective != null) {
-                objective.unregister();
+            if (playerObjective != null) {
+                playerObjective.unregister();
             }
         }
     }
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        Bukkit.getScheduler().runTask(this,
-                () -> updatePlayer(event.getPlayer()));
+        Bukkit.getScheduler().runTask(
+                this,
+                () -> updatePlayer(event.getPlayer())
+        );
     }
 
     @EventHandler
@@ -228,13 +213,21 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onWorldChange(PlayerChangedWorldEvent event) {
+        TextDisplay display = displays.remove(
+                event.getPlayer().getUniqueId()
+        );
+
+        if (display != null && display.isValid()) {
+            display.remove();
+        }
+
         updatePlayer(event.getPlayer());
     }
 
     public void setLives(Player player, int amount) {
         lives.put(player.getUniqueId(), Math.max(0, amount));
         saveLives();
-        updateAllPlayers();
+        updatePlayer(player);
     }
 
     public void addLife(Player player) {
