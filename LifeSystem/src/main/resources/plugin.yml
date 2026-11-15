@@ -1,14 +1,9 @@
-name: LifeSystem
-version: 1.0.0
-main: me.yourname.lifesystem.LifeSystem
-api-version: '1.21.11'
-
 commands:
   lives:
-    description: Check or manage player lives
+    description: LifeSystem commands
     usage: /lives
 
 permissions:
   lifesystem.admin:
-    description: Allows managing player lives
+    description: Allows administration of player lives
     default: op
