@@ -238,6 +238,17 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         return null;
     }
 
+    // Heart emoji based on lives
+    private String getHeart(int lives) {
+        if (lives >= 5) return "🩵";
+        if (lives == 4) return "💚";
+        if (lives == 3) return "💛";
+        if (lives == 2) return "🧡";
+        if (lives == 1) return "❤️";
+        return "💜";
+    }
+
+    // Name and number color based on lives
     private NamedTextColor getLifeColor(int lives) {
         if (lives >= 5) {
             return NamedTextColor.AQUA;
@@ -258,17 +269,17 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         int lives = getLives(player);
         NamedTextColor color = getLifeColor(lives);
 
-        // Tab list color
-        player.setPlayerListName(
-                LegacyComponentSerializer.legacySection().serialize(
-                        Component.text(
-                                player.getName() + " [" + lives + "]",
-                                color
-                        )
-                )
+        // Tab list: username, heart, and number all use the life color
+        Component tabName = Component.text(
+                player.getName() + " " + getHeart(lives) + " " + lives,
+                color
         );
 
-        // Below-name number color
+        player.setPlayerListName(
+                LegacyComponentSerializer.legacySection().serialize(tabName)
+        );
+
+        // Below-name number
         var score = livesObjective.getScoreFor(player);
         score.setScore(lives);
         score.numberFormat(NumberFormat.styled(Style.style(color)));
