@@ -1,12 +1,6 @@
 
 package me.yourname.lifesystem;
 
-import io.papermc.paper.scoreboard.numbers.NumberFormat;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.Style;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -17,22 +11,16 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scoreboard.Criteria;
-import org.bukkit.scoreboard.DisplaySlot;
-import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.RenderType;
 
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class LifeSystem extends JavaPlugin implements Listener {
 
     private static final int STARTING_LIVES = 5;
-    private Objective livesObjective;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        setupDisplay();
 
         getServer().getPluginManager().registerEvents(this, this);
 
@@ -48,11 +36,53 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
                     sender.sendMessage(ChatColor.GREEN + "You have "
                             + getLives(player) + " lives.");
+
+                    if (hasCustomLife(player)) {
+                        sender.sendMessage(ChatColor.BLACK + "You also have a custom 🖤 life!");
+                    }
+
                     return true;
                 }
 
                 if (!sender.hasPermission("lifesystem.admin")) {
                     sender.sendMessage(ChatColor.RED + "You do not have permission.");
+                    return true;
+                }
+
+                // /lives custom <player>
+                if (args.length == 2
+                        && args[0].equalsIgnoreCase("custom")) {
+
+                    Player target = findPlayer(args[1]);
+
+                    if (target == null) {
+                        sender.sendMessage(ChatColor.RED + "Player not found online.");
+                        return true;
+                    }
+
+                    setCustomLife(target, true);
+
+                    sender.sendMessage(ChatColor.GREEN
+                            + "Gave " + target.getName() + " a custom 🖤 life!");
+                    return true;
+                }
+
+                // /lives custom remove <player>
+                if (args.length == 3
+                        && args[0].equalsIgnoreCase("custom")
+                        && args[1].equalsIgnoreCase("remove")) {
+
+                    Player target = findPlayer(args[2]);
+
+                    if (target == null) {
+                        sender.sendMessage(ChatColor.RED + "Player not found online.");
+                        return true;
+                    }
+
+                    setCustomLife(target, false);
+
+                    sender.sendMessage(ChatColor.GREEN
+                            + "Removed " + target.getName() + "'s custom life.");
                     return true;
                 }
 
@@ -68,8 +98,9 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                     }
 
                     int amount = ThreadLocalRandom.current().nextInt(1, 6);
+
                     setLives(player, amount);
-                    restoreSurvivalIfAlive(player);
+                    updateGameMode(player);
 
                     sender.sendMessage(ChatColor.GREEN
                             + "Your lives were randomly set to " + amount + ".");
@@ -89,8 +120,9 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                     }
 
                     int amount = ThreadLocalRandom.current().nextInt(1, 6);
+
                     setLives(target, amount);
-                    restoreSurvivalIfAlive(target);
+                    updateGameMode(target);
 
                     sender.sendMessage(ChatColor.GREEN + "Set "
                             + target.getName() + "'s lives randomly to " + amount + ".");
@@ -98,7 +130,9 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                 }
 
                 // /lives set <player> <amount>
-                if (args.length == 3 && args[0].equalsIgnoreCase("set")) {
+                if (args.length == 3
+                        && args[0].equalsIgnoreCase("set")) {
+
                     Player target = findPlayer(args[1]);
 
                     if (target == null) {
@@ -110,12 +144,13 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                         int amount = Integer.parseInt(args[2]);
 
                         if (amount < 0) {
-                            sender.sendMessage(ChatColor.RED + "Lives cannot be negative.");
+                            sender.sendMessage(ChatColor.RED
+                                    + "Lives cannot be negative.");
                             return true;
                         }
 
                         setLives(target, amount);
-                        restoreSurvivalIfAlive(target);
+                        updateGameMode(target);
 
                         sender.sendMessage(ChatColor.GREEN + "Set "
                                 + target.getName() + "'s lives to " + amount + ".");
@@ -129,7 +164,9 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                 }
 
                 // /lives reset <player>
-                if (args.length == 2 && args[0].equalsIgnoreCase("reset")) {
+                if (args.length == 2
+                        && args[0].equalsIgnoreCase("reset")) {
+
                     Player target = findPlayer(args[1]);
 
                     if (target == null) {
@@ -138,19 +175,21 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                     }
 
                     setLives(target, STARTING_LIVES);
-                    restoreSurvivalIfAlive(target);
+                    updateGameMode(target);
 
-                    sender.sendMessage(ChatColor.GREEN + "Reset "
-                            + target.getName() + " to " + STARTING_LIVES + " lives.");
+                    sender.sendMessage(ChatColor.GREEN
+                            + "Reset " + target.getName() + " to 5 lives.");
                     return true;
                 }
 
-                sender.sendMessage(ChatColor.YELLOW + "Usage:");
+                sender.sendMessage(ChatColor.YELLOW + "Lives commands:");
                 sender.sendMessage("/lives");
                 sender.sendMessage("/lives set <player> <amount>");
                 sender.sendMessage("/lives set <player> random");
                 sender.sendMessage("/lives set random");
                 sender.sendMessage("/lives reset <player>");
+                sender.sendMessage("/lives custom <player>");
+                sender.sendMessage("/lives custom remove <player>");
 
                 return true;
             });
@@ -160,26 +199,10 @@ public final class LifeSystem extends JavaPlugin implements Listener {
             initializePlayer(player);
         }
 
-        getLogger().info("LifeSystem enabled.");
+        getLogger().info("LifeSystem enabled!");
     }
 
-    private void setupDisplay() {
-        var scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
-
-        livesObjective = scoreboard.getObjective("ls_lives");
-
-        if (livesObjective == null) {
-            livesObjective = scoreboard.registerNewObjective(
-                    "ls_lives",
-                    Criteria.DUMMY,
-                    Component.text("Lives"),
-                    RenderType.INTEGER
-            );
-        }
-
-        livesObjective.setDisplaySlot(DisplaySlot.BELOW_NAME);
-    }
-
+    // Set starting lives when a player joins for the first time
     private void initializePlayer(Player player) {
         String path = "players." + player.getUniqueId();
 
@@ -189,12 +212,10 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         }
 
         updateDisplay(player);
-
-        if (getLives(player) == 0) {
-            player.setGameMode(GameMode.SPECTATOR);
-        }
+        updateGameMode(player);
     }
 
+    // Get player's lives
     private int getLives(Player player) {
         return getConfig().getInt(
                 "players." + player.getUniqueId(),
@@ -202,13 +223,33 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         );
     }
 
+    // Set player's lives
     private void setLives(Player player, int amount) {
         getConfig().set("players." + player.getUniqueId(), amount);
         saveConfig();
         updateDisplay(player);
     }
 
-    // Find a player by real username or Bukkit-visible nickname
+    // Check whether player has the special black heart
+    private boolean hasCustomLife(Player player) {
+        return getConfig().getBoolean(
+                "customPlayers." + player.getUniqueId(),
+                false
+        );
+    }
+
+    // Give or remove the special black heart
+    private void setCustomLife(Player player, boolean enabled) {
+        getConfig().set(
+                "customPlayers." + player.getUniqueId(),
+                enabled
+        );
+
+        saveConfig();
+        updateDisplay(player);
+    }
+
+    // Find players by username or Bukkit-visible nickname
     private Player findPlayer(String input) {
         String search = ChatColor.stripColor(input).trim();
 
@@ -238,56 +279,66 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         return null;
     }
 
-    // Heart emoji based on lives
+    // Heart based on lives
     private String getHeart(int lives) {
-        if (lives >= 5) return "🩵";
-        if (lives == 4) return "💚";
-        if (lives == 3) return "💛";
-        if (lives == 2) return "🧡";
-        if (lives == 1) return "❤️";
-        return "💜";
-    }
-
-    // Name and number color based on lives
-    private NamedTextColor getLifeColor(int lives) {
-        if (lives >= 5) {
-            return NamedTextColor.AQUA;
-        } else if (lives == 4) {
-            return NamedTextColor.GREEN;
-        } else if (lives == 3) {
-            return NamedTextColor.YELLOW;
-        } else if (lives == 2) {
-            return NamedTextColor.GOLD;
-        } else if (lives == 1) {
-            return NamedTextColor.RED;
-        } else {
-            return NamedTextColor.LIGHT_PURPLE;
+        switch (lives) {
+            case 5:
+                return "🩵";
+            case 4:
+                return "💚";
+            case 3:
+                return "💛";
+            case 2:
+                return "🧡";
+            case 1:
+                return "❤️";
+            default:
+                return "❓";
         }
     }
 
-    private void updateDisplay(Player player) {
-        int lives = getLives(player);
-        NamedTextColor color = getLifeColor(lives);
-
-        // Tab list: username, heart, and number all use the life color
-        Component tabName = Component.text(
-                player.getName() + " " + getHeart(lives) + " " + lives,
-                color
-        );
-
-        player.setPlayerListName(
-                LegacyComponentSerializer.legacySection().serialize(tabName)
-        );
-
-        // Below-name number
-        var score = livesObjective.getScoreFor(player);
-        score.setScore(lives);
-        score.numberFormat(NumberFormat.styled(Style.style(color)));
+    // Name color based on lives
+    private ChatColor getLifeColor(int lives) {
+        switch (lives) {
+            case 5:
+                return ChatColor.AQUA;
+            case 4:
+                return ChatColor.GREEN;
+            case 3:
+                return ChatColor.YELLOW;
+            case 2:
+                return ChatColor.GOLD;
+            case 1:
+                return ChatColor.RED;
+            default:
+                return ChatColor.LIGHT_PURPLE;
+        }
     }
 
-    private void restoreSurvivalIfAlive(Player player) {
-        if (getLives(player) > 0
-                && player.getGameMode() == GameMode.SPECTATOR) {
+    // Update tab list
+    private void updateDisplay(Player player) {
+        int lives = getLives(player);
+
+        ChatColor color = getLifeColor(lives);
+
+        String display = color
+                + player.getName()
+                + " "
+                + getHeart(lives);
+
+        // Add custom black heart alongside normal life hearts
+        if (hasCustomLife(player)) {
+            display += " " + ChatColor.BLACK + "🖤";
+        }
+
+        player.setPlayerListName(display);
+    }
+
+    // Update spectator/survival mode
+    private void updateGameMode(Player player) {
+        if (getLives(player) == 0) {
+            player.setGameMode(GameMode.SPECTATOR);
+        } else if (player.getGameMode() == GameMode.SPECTATOR) {
             player.setGameMode(GameMode.SURVIVAL);
         }
     }
@@ -297,19 +348,22 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         initializePlayer(event.getPlayer());
     }
 
+    // Remove one life after death
     @EventHandler
     public void onDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
 
         int remaining = Math.max(0, getLives(player) - 1);
+
         setLives(player, remaining);
 
         if (remaining == 0) {
-            Bukkit.broadcastMessage(ChatColor.RED + player.getName()
-                    + " has run out of lives and is now eliminated!");
+            Bukkit.broadcastMessage(ChatColor.RED
+                    + player.getName() + " has run out of lives!");
         }
     }
 
+    // Put players with zero lives into spectator after respawning
     @EventHandler
     public void onRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
