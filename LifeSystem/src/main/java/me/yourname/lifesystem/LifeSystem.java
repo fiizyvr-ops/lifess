@@ -1,9 +1,6 @@
+
 package me.yourname.lifesystem;
 
-import io.papermc.paper.scoreboard.numbers.NumberFormat;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.Style;
 import org.bukkit.BanList;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -36,6 +33,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         if (getCommand("lives") != null) {
             getCommand("lives").setExecutor((sender, command, label, args) -> {
 
+                // /lives
                 if (args.length == 0) {
                     if (!(sender instanceof Player player)) {
                         sender.sendMessage("This command is for players.");
@@ -59,61 +57,71 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
                     if (!(sender instanceof Player player)) {
                         sender.sendMessage(ChatColor.RED
-                                + "The console must use /lives set <player> random.");
+                                + "Console must use /lives set <player> random.");
                         return true;
                     }
 
                     int amount = ThreadLocalRandom.current().nextInt(1, 6);
                     setLives(player, amount);
-
                     sender.sendMessage(ChatColor.GREEN
-                            + "You now have " + amount + " lives!");
+                            + "Your lives have been randomly set to " + amount + ".");
                     return true;
                 }
 
-                // /lives set <player> <amount or random>
+                // /lives set <player> random
+                if (args.length == 3
+                        && args[0].equalsIgnoreCase("set")
+                        && args[2].equalsIgnoreCase("random")) {
+
+                    Player target = Bukkit.getPlayerExact(args[1]);
+
+                    if (target == null) {
+                        sender.sendMessage(ChatColor.RED + "That player must be online.");
+                        return true;
+                    }
+
+                    int amount = ThreadLocalRandom.current().nextInt(1, 6);
+                    setLives(target, amount);
+                    sender.sendMessage(ChatColor.GREEN + "Set "
+                            + target.getName() + "'s lives randomly to " + amount + ".");
+                    return true;
+                }
+
+                // /lives set <player> <amount>
                 if (args.length == 3 && args[0].equalsIgnoreCase("set")) {
                     Player target = Bukkit.getPlayerExact(args[1]);
 
                     if (target == null) {
-                        sender.sendMessage(ChatColor.RED
-                                + "That player must be online.");
+                        sender.sendMessage(ChatColor.RED + "That player must be online.");
                         return true;
                     }
 
-                    int amount;
+                    try {
+                        int amount = Integer.parseInt(args[2]);
 
-                    if (args[2].equalsIgnoreCase("random")) {
-                        amount = ThreadLocalRandom.current().nextInt(1, 6);
-                    } else {
-                        try {
-                            amount = Integer.parseInt(args[2]);
-                        } catch (NumberFormatException exception) {
-                            sender.sendMessage(ChatColor.RED
-                                    + "Enter a valid whole number or random.");
+                        if (amount < 0) {
+                            sender.sendMessage(ChatColor.RED + "Lives cannot be negative.");
                             return true;
                         }
-                    }
 
-                    if (amount < 0) {
-                        sender.sendMessage(ChatColor.RED
-                                + "Lives cannot be negative.");
-                        return true;
-                    }
+                        setLives(target, amount);
 
-                    setLives(target, amount);
+                        if (amount > 0) {
+                            Bukkit.getBanList(BanList.Type.NAME).pardon(target.getName());
 
-                    if (amount > 0) {
-                        Bukkit.getBanList(BanList.Type.NAME)
-                                .pardon(target.getName());
-
-                        if (target.getGameMode() == GameMode.SPECTATOR) {
-                            target.setGameMode(GameMode.SURVIVAL);
+                            if (target.getGameMode() == GameMode.SPECTATOR) {
+                                target.setGameMode(GameMode.SURVIVAL);
+                            }
                         }
+
+                        sender.sendMessage(ChatColor.GREEN + "Set "
+                                + target.getName() + "'s lives to " + amount + ".");
+
+                    } catch (NumberFormatException exception) {
+                        sender.sendMessage(ChatColor.RED
+                                + "Enter a valid whole number or random.");
                     }
 
-                    sender.sendMessage(ChatColor.GREEN + "Set "
-                            + target.getName() + "'s lives to " + amount + ".");
                     return true;
                 }
 
@@ -122,29 +130,24 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                     Player target = Bukkit.getPlayerExact(args[1]);
 
                     if (target == null) {
-                        sender.sendMessage(ChatColor.RED
-                                + "That player must be online.");
+                        sender.sendMessage(ChatColor.RED + "That player must be online.");
                         return true;
                     }
 
                     setLives(target, STARTING_LIVES);
-
-                    Bukkit.getBanList(BanList.Type.NAME)
-                            .pardon(target.getName());
-
+                    Bukkit.getBanList(BanList.Type.NAME).pardon(target.getName());
                     target.setGameMode(GameMode.SURVIVAL);
 
                     sender.sendMessage(ChatColor.GREEN + "Reset "
-                            + target.getName() + " to "
-                            + STARTING_LIVES + " lives.");
+                            + target.getName() + " to " + STARTING_LIVES + " lives.");
                     return true;
                 }
 
                 sender.sendMessage(ChatColor.YELLOW + "Usage:");
                 sender.sendMessage("/lives");
-                sender.sendMessage("/lives set random");
                 sender.sendMessage("/lives set <player> <amount>");
                 sender.sendMessage("/lives set <player> random");
+                sender.sendMessage("/lives set random");
                 sender.sendMessage("/lives reset <player>");
 
                 return true;
@@ -167,7 +170,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
             livesObjective = scoreboard.registerNewObjective(
                     "ls_lives",
                     Criteria.DUMMY,
-                    Component.text("Lives"),
+                    "Lives",
                     RenderType.INTEGER
             );
         }
@@ -201,32 +204,28 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
     private void updateDisplay(Player player) {
         int lives = getLives(player);
-
-        NamedTextColor color;
+        ChatColor color;
 
         if (lives >= 5) {
-            color = NamedTextColor.AQUA;
+            color = ChatColor.AQUA;
         } else if (lives == 4) {
-            color = NamedTextColor.GREEN;
+            color = ChatColor.GREEN;
         } else if (lives == 3) {
-            color = NamedTextColor.YELLOW;
+            color = ChatColor.YELLOW;
         } else if (lives == 2) {
-            color = NamedTextColor.GOLD;
+            color = ChatColor.GOLD;
         } else if (lives == 1) {
-            color = NamedTextColor.RED;
+            color = ChatColor.RED;
         } else {
-            color = NamedTextColor.LIGHT_PURPLE;
+            color = ChatColor.LIGHT_PURPLE;
         }
 
-        // Tab list name
         player.setPlayerListName(
-                Component.text(player.getName() + " [" + lives + "]", color)
+                color + player.getName() + " [" + lives + "]"
+                        + ChatColor.RESET
         );
 
-        // Below-name number, using the player's entity scoreboard entry
-        var score = livesObjective.getScoreFor(player);
-        score.setScore(lives);
-        score.numberFormat(NumberFormat.styled(Style.style(color)));
+        livesObjective.getScore(player.getName()).setScore(lives);
     }
 
     @EventHandler
@@ -253,7 +252,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                         "LifeSystem"
                 );
 
-                player.kick(Component.text("You have run out of lives."));
+                player.kickPlayer("You have run out of lives.");
             });
         }
     }
