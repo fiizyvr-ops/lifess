@@ -1,4 +1,3 @@
-
 package me.yourname.lifesystem;
 
 import io.papermc.paper.scoreboard.numbers.NumberFormat;
