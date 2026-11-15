@@ -1,4 +1,3 @@
-
 package me.yourname.lifesystem;
 
 import net.kyori.adventure.key.Key;
@@ -6,7 +5,6 @@ import net.kyori.adventure.text.Component;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
-import org.bukkit.World;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
@@ -14,10 +12,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.Scoreboard;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,11 +20,7 @@ import java.util.UUID;
 
 public final class LifeSystem extends JavaPlugin implements Listener {
 
-    private static final Key HEART_FONT =
-            Key.key("lifesystem", "hearts");
-
-    private static final String DISPLAY_TAG =
-            "lifesystem_heart_display";
+    private static final Key HEART_FONT = Key.key("lifesystem", "hearts");
 
     private final Map<UUID, Integer> lives = new HashMap<>();
     private final Map<UUID, TextDisplay> displays = new HashMap<>();
@@ -39,10 +30,48 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         saveDefaultConfig();
         loadLives();
 
-        getServer().getPluginManager().registerEvents(this, this);
+        if (getCommand("lives") != null) {
+            getCommand("lives").setExecutor((sender, command, label, args) -> {
 
-        removeOldDisplays();
-        removeOldScoreboards();
+                if (args.length != 3 || !args[0].equalsIgnoreCase("set")) {
+                    sender.sendMessage("Usage: /lives set <player> <amount>");
+                    return true;
+                }
+
+                Player target = Bukkit.getPlayerExact(args[1]);
+
+                if (target == null) {
+                    sender.sendMessage("That player is not online.");
+                    return true;
+                }
+
+                int amount;
+
+                try {
+                    amount = Integer.parseInt(args[2]);
+                } catch (NumberFormatException e) {
+                    sender.sendMessage("Enter a valid number.");
+                    return true;
+                }
+
+                if (amount < 0) {
+                    sender.sendMessage("Lives cannot be negative.");
+                    return true;
+                }
+
+                setLives(target, amount);
+
+                sender.sendMessage(
+                        "Set " + target.getName() + "'s lives to " + amount + "."
+                );
+
+                target.sendMessage("Your lives have been set to " + amount + ".");
+
+                return true;
+            });
+        }
+
+        Bukkit.getPluginManager().registerEvents(this, this);
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             updatePlayer(player);
@@ -64,21 +93,28 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         displays.clear();
     }
 
+    // LOAD SAVED LIVES
+
     private void loadLives() {
         lives.clear();
 
-        if (getConfig().isConfigurationSection("lives")) {
-            for (String key :
-                    getConfig().getConfigurationSection("lives").getKeys(false)) {
-                try {
-                    UUID uuid = UUID.fromString(key);
-                    lives.put(uuid, getConfig().getInt("lives." + key, 5));
-                } catch (IllegalArgumentException ignored) {
-                    getLogger().warning("Invalid UUID: " + key);
-                }
+        if (!getConfig().isConfigurationSection("lives")) {
+            return;
+        }
+
+        for (String key : getConfig()
+                .getConfigurationSection("lives").getKeys(false)) {
+
+            try {
+                UUID uuid = UUID.fromString(key);
+                lives.put(uuid, getConfig().getInt("lives." + key, 5));
+            } catch (IllegalArgumentException e) {
+                getLogger().warning("Invalid player UUID: " + key);
             }
         }
     }
+
+    // SAVE LIVES
 
     private void saveLives() {
         for (Map.Entry<UUID, Integer> entry : lives.entrySet()) {
@@ -91,11 +127,16 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         saveConfig();
     }
 
+    // GET PLAYER LIVES
+
     private int getLives(Player player) {
         return lives.getOrDefault(player.getUniqueId(), 5);
     }
 
+    // GET HEART TEXTURE
+
     private Component createHeart(int amount) {
+
         String glyph = switch (amount) {
             case 5 -> "\uE000";
             case 4 -> "\uE001";
@@ -109,132 +150,113 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         return Component.text(glyph).font(HEART_FONT);
     }
 
+    // UPDATE PLAYER DISPLAYS
+
     private void updatePlayer(Player player) {
-        UUID uuid = player.getUniqueId();
-        Component heart = createHeart(getLives(player));
+
+        int amount = getLives(player);
+        Component heart = createHeart(amount);
 
         // TAB LIST HEART
+
         player.playerListName(
                 Component.text(player.getName() + "  ").append(heart)
         );
 
-        // CREATE OR REUSE THE TEXT DISPLAY
-        TextDisplay display = displays.get(uuid);
+        // FLOATING HEART
+
+        TextDisplay display = displays.get(player.getUniqueId());
 
         if (display == null || !display.isValid()) {
+
             display = player.getWorld().spawn(
-                    player.getLocation().add(0, 2.0, 0),
-                    TextDisplay.class,
-                    entity -> {
-                        entity.addScoreboardTag(DISPLAY_TAG);
-                        entity.setPersistent(false);
-                        entity.setInvulnerable(true);
-                        entity.setSilent(true);
-
-                        entity.setBillboard(Display.Billboard.CENTER);
-                        entity.setAlignment(
-                                TextDisplay.TextAlignment.CENTER
-                        );
-
-                        entity.setDefaultBackground(false);
-                        entity.setBackgroundColor(
-                                Color.fromARGB(0, 0, 0, 0)
-                        );
-
-                        entity.setSeeThrough(true);
-                        entity.setShadowed(false);
-                    }
+                    player.getLocation().add(0, 2.2, 0),
+                    TextDisplay.class
             );
 
-            displays.put(uuid, display);
-        }
+            display.setPersistent(false);
+            display.setInvulnerable(true);
+            display.setSilent(true);
 
-        // ATTACH TO PLAYER: NO REPEATED TELEPORTING
-        if (display.getVehicle() != player) {
-            if (display.getVehicle() != null) {
-                display.getVehicle().removePassenger(display);
+            display.setBillboard(Display.Billboard.CENTER);
+            display.setAlignment(TextDisplay.TextAlignment.CENTER);
+
+            display.setDefaultBackground(false);
+            display.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
+
+            display.setSeeThrough(true);
+            display.setShadowed(false);
+
+            boolean attached = player.addPassenger(display);
+
+            if (!attached) {
+                display.remove();
+                getLogger().warning(
+                        "Could not attach heart display to " + player.getName()
+                );
+                return;
             }
 
-            player.addPassenger(display);
+            displays.put(player.getUniqueId(), display);
         }
 
         display.text(heart);
     }
 
-    private void removeOldDisplays() {
-        for (World world : Bukkit.getWorlds()) {
-            for (org.bukkit.entity.Entity entity : world.getEntities()) {
-                if (entity instanceof TextDisplay &&
-                        entity.getScoreboardTags().contains(DISPLAY_TAG)) {
-                    entity.remove();
-                }
-            }
-        }
-    }
+    // UPDATE EVERY PLAYER
 
-    private void removeOldScoreboards() {
-        Scoreboard main =
-                Bukkit.getScoreboardManager().getMainScoreboard();
-
-        Objective objective = main.getObjective("lifesystem");
-
-        if (objective != null) {
-            objective.unregister();
-        }
-
+    private void updateAllPlayers() {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            Scoreboard board = player.getScoreboard();
-            Objective playerObjective = board.getObjective("lifesystem");
-
-            if (playerObjective != null) {
-                playerObjective.unregister();
-            }
+            updatePlayer(player);
         }
     }
 
-    @EventHandler
-    public void onJoin(PlayerJoinEvent event) {
-        Bukkit.getScheduler().runTask(
-                this,
-                () -> updatePlayer(event.getPlayer())
-        );
-    }
-
-    @EventHandler
-    public void onQuit(PlayerQuitEvent event) {
-        TextDisplay display = displays.remove(
-                event.getPlayer().getUniqueId()
-        );
-
-        if (display != null && display.isValid()) {
-            display.remove();
-        }
-    }
-
-    @EventHandler
-    public void onWorldChange(PlayerChangedWorldEvent event) {
-        TextDisplay display = displays.remove(
-                event.getPlayer().getUniqueId()
-        );
-
-        if (display != null && display.isValid()) {
-            display.remove();
-        }
-
-        updatePlayer(event.getPlayer());
-    }
+    // SET LIVES
 
     public void setLives(Player player, int amount) {
+
         lives.put(player.getUniqueId(), Math.max(0, amount));
+
         saveLives();
-        updatePlayer(player);
+        updateAllPlayers();
     }
+
+    // ADD LIFE
 
     public void addLife(Player player) {
         setLives(player, getLives(player) + 1);
     }
 
+    // REMOVE LIFE
+
     public void removeLife(Player player) {
         setLives(player, Math.max(0, getLives(player) - 1));
+    }
+
+    // PLAYER JOINS
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Bukkit.getScheduler().runTaskLater(
+                this,
+                () -> updatePlayer(event.getPlayer()),
+                2L
+        );
+    }
+
+    // PLAYER QUITS
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+
+        UUID uuid = event.getPlayer().getUniqueId();
+
+        TextDisplay display = displays.remove(uuid);
+
+        if (display != null && display.isValid()) {
+            display.remove();
+        }
+
+        saveLives();
     }
 }
