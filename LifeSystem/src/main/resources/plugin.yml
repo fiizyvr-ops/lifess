@@ -1,3 +1,9 @@
+
+name: LifeSystem
+version: 1.0.0
+main: me.yourname.lifesystem.LifeSystem
+api-version: '1.21'
+
 commands:
   lives:
     description: LifeSystem commands
