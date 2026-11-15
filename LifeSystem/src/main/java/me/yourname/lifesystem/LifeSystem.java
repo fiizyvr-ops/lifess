@@ -7,6 +7,8 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.GameMode;
+import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
@@ -414,6 +416,30 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
         int previousLives = getLives(player);
         int newLives = Math.max(0, previousLives - 1);
+
+        // Broadcast the respawn anchor sound on every death (pitch 2).
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            online.playSound(
+                    online.getLocation(),
+                    Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE,
+                    SoundCategory.AMBIENT,
+                    1.0f,
+                    2.0f
+            );
+        }
+
+        // If this was the player's final life, also broadcast the Wither sound (pitch 2).
+        if (previousLives == 1) {
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                online.playSound(
+                        online.getLocation(),
+                        Sound.ENTITY_WITHER_SPAWN,
+                        SoundCategory.AMBIENT,
+                        1.0f,
+                        2.0f
+                );
+            }
+        }
 
         setLives(player, newLives);
         removeDisplay(player);
