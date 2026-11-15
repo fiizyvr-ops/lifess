@@ -142,12 +142,13 @@ public final class LifeSystem extends JavaPlugin implements Listener {
     // PLAYER DISPLAY
 
     private void updatePlayer(Player player) {
+
         Component heart = createHeart(player);
 
-        player.playerListName(
-                Component.text(player.getName() + "  ").append(heart)
-        );
+        // Normal name in tab list. No heart.
+        player.playerListName(Component.text(player.getName()));
 
+        // Remove overhead display while dead.
         if (player.isDead()) {
             removeDisplay(player);
             return;
@@ -156,6 +157,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         TextDisplay display = displays.get(player.getUniqueId());
 
         if (display == null || !display.isValid()) {
+
             display = player.getWorld().spawn(
                     player.getLocation().add(0, 2.2, 0),
                     TextDisplay.class
@@ -167,12 +169,14 @@ public final class LifeSystem extends JavaPlugin implements Listener {
             display.setBillboard(Display.Billboard.CENTER);
             display.setAlignment(TextDisplay.TextAlignment.CENTER);
 
+            // No background.
             display.setDefaultBackground(false);
             display.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
 
             display.setSeeThrough(true);
             display.setShadowed(false);
 
+            // Position and size.
             display.setTransformation(
                     new Transformation(
                             new Vector3f(0f, 0.8f, 0f),
@@ -184,12 +188,15 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
             if (!player.addPassenger(display)) {
                 display.remove();
+
                 getLogger().warning(
                         "Could not attach overhead heart to " + player.getName()
                 );
+
                 return;
             }
 
+            // Hide the heart from its owner.
             player.hideEntity(this, display);
 
             displays.put(player.getUniqueId(), display);
@@ -249,7 +256,9 @@ public final class LifeSystem extends JavaPlugin implements Listener {
             String label,
             String[] args
     ) {
+
         if (args.length == 0) {
+
             if (!(sender instanceof Player player)) {
                 sender.sendMessage("Console: use /lives set <player> <amount>");
                 return true;
@@ -260,19 +269,23 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         }
 
         if (args[0].equalsIgnoreCase("set")) {
+
             if (!sender.hasPermission("lifesystem.admin")) {
                 sender.sendMessage("You don't have permission.");
                 return true;
             }
 
             if (args.length == 2 && args[1].equalsIgnoreCase("random")) {
+
                 if (!(sender instanceof Player player)) {
                     sender.sendMessage("Console must specify a player.");
                     return true;
                 }
 
                 int amount = random.nextInt(5) + 1;
+
                 setLives(player, amount);
+
                 sender.sendMessage("Your lives were randomly set to " + amount + ".");
                 return true;
             }
@@ -308,18 +321,22 @@ public final class LifeSystem extends JavaPlugin implements Listener {
             }
 
             setLives(target, amount);
+
             sender.sendMessage("Set " + target.getName() + "'s lives to " + amount + ".");
             target.sendMessage("Your lives were set to " + amount + ".");
+
             return true;
         }
 
         if (args[0].equalsIgnoreCase("custom")) {
+
             if (!sender.hasPermission("lifesystem.admin")) {
                 sender.sendMessage("You don't have permission.");
                 return true;
             }
 
             if (args.length == 3 && args[1].equalsIgnoreCase("remove")) {
+
                 Player target = Bukkit.getPlayerExact(args[2]);
 
                 if (target == null) {
@@ -328,6 +345,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
                 }
 
                 customHearts.remove(target.getUniqueId());
+
                 saveData();
                 updateAllPlayers();
 
@@ -349,11 +367,13 @@ public final class LifeSystem extends JavaPlugin implements Listener {
             }
 
             customHearts.add(target.getUniqueId());
+
             saveData();
             updateAllPlayers();
 
             sender.sendMessage("Gave " + target.getName() + " the custom heart.");
             target.sendMessage("You now have the custom heart.");
+
             return true;
         }
 
@@ -365,16 +385,19 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
+
         Player player = event.getPlayer();
 
         lives.putIfAbsent(player.getUniqueId(), 5);
         saveData();
 
         Bukkit.getScheduler().runTaskLater(this, () -> {
+
             if (!player.isOnline()) return;
 
             updatePlayer(player);
             applyZeroLivesRule(player);
+
         }, 2L);
     }
 
@@ -386,6 +409,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
+
         Player player = event.getEntity();
 
         int previousLives = getLives(player);
@@ -394,7 +418,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
         setLives(player, newLives);
         removeDisplay(player);
 
-        // Announce only when the player loses their final life.
+        // Announce when someone loses their final life.
         if (previousLives == 1) {
             Bukkit.broadcastMessage(
                     "§c" + player.getName() + " has lost all their lives!"
@@ -404,13 +428,16 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
+
         Player player = event.getPlayer();
 
         Bukkit.getScheduler().runTaskLater(this, () -> {
+
             if (!player.isOnline()) return;
 
             updatePlayer(player);
             applyZeroLivesRule(player);
+
         }, 2L);
     }
 }
