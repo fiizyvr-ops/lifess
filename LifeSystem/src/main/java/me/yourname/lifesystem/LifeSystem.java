@@ -3,6 +3,8 @@ package me.yourname.lifesystem;
 
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import io.papermc.paper.scoreboard.numbers.NumberFormat;
+
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -90,13 +92,13 @@ public final class LifeSystem extends JavaPlugin {
         int amount = getLives(player);
         Component heart = createHeart(amount);
 
-        // Tab-list heart
+        // Custom heart in tab list
         player.playerListName(
                 Component.text(player.getName() + "  ")
                         .append(heart)
         );
 
-        // Below-name scoreboard
+        // Custom heart below player name
         Scoreboard board = player.getScoreboard();
 
         Objective objective = board.getObjective("lifesystem");
@@ -110,6 +112,9 @@ public final class LifeSystem extends JavaPlugin {
         }
 
         objective.setDisplaySlot(DisplaySlot.BELOW_NAME);
+
+        objective.numberFormat(NumberFormat.fixed(heart));
+
         objective.getScore(player.getName()).setScore(amount);
     }
 
