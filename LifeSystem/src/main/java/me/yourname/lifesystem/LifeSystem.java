@@ -160,7 +160,7 @@ public final class LifeSystem extends JavaPlugin implements Listener {
 
         player.setPlayerListName(color + player.getName()
                 + ChatColor.RESET + " [" + lives + "]");
-        livesObjective.getScore(player.getName()).setScore(lives);
+        livesObjective.getScoreFor(player).setScore(lives);
     }
 
     @EventHandler
